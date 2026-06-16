@@ -60,6 +60,8 @@ echo ""
 echo "==> Verifying..."
 "$SCRIPT_DIR/check-ghelper.sh"
 
+"$SCRIPT_DIR/install-scripts.sh" 2>/dev/null || true
+
 echo ""
-echo "==> Fixed. Launch with: ghelper"
+echo "==> Fixed. Launch with: start-ghelper.sh"
 echo "    Tip: decline in-app updates on Pop 22.04 — they download GLIBC 2.38 binaries."

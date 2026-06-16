@@ -28,8 +28,9 @@ sudo rm -f /opt/ghelper/libSkiaSharp.so /opt/ghelper/libHarfBuzzSharp.so
 echo "==> Installing to /opt/ghelper ..."
 sudo "$REPO_DIR/install/install-local.sh"
 
+"$SCRIPT_DIR/install-scripts.sh"
 "$SCRIPT_DIR/disable-auto-update.sh"
 "$SCRIPT_DIR/check-ghelper.sh"
 
 echo ""
-echo "==> Install complete. Launch with: ghelper"
+echo "==> Install complete. Launch with: start-ghelper.sh"

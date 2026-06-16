@@ -33,17 +33,67 @@ On Pop!_OS 22.04, that binary typically fails with:
 
 ---
 
+## Scripts (in this repo)
+
+All scripts live in **`scripts/`** and use the **exact names below**:
+
+| Script | What it does |
+|--------|----------------|
+| [`scripts/install-deps.sh`](scripts/install-deps.sh) | Install apt packages + .NET 10 SDK |
+| [`scripts/build-and-install.sh`](scripts/build-and-install.sh) | Clone, build, install g-helper-linux + install scripts |
+| [`scripts/install-scripts.sh`](scripts/install-scripts.sh) | Copy all scripts to `/usr/local/bin/` (same names) |
+| [`scripts/fix-after-auto-update.sh`](scripts/fix-after-auto-update.sh) | **Run if you hit auto-update by mistake** |
+| [`scripts/check-ghelper.sh`](scripts/check-ghelper.sh) | Verify binary is compatible with Pop 22.04 |
+| [`scripts/disable-auto-update.sh`](scripts/disable-auto-update.sh) | Set `skip_update_prompt=1` in config |
+| [`scripts/start-ghelper.sh`](scripts/start-ghelper.sh) | **Safe launcher** — sets DBUS/DISPLAY env (prevents startup segfault) |
+
+```bash
+git clone https://github.com/sandy9808/g-helper-popos-setup.git
+cd g-helper-popos-setup
+chmod +x scripts/*.sh
+
+# First-time install
+./scripts/install-deps.sh
+./scripts/build-and-install.sh
+
+# Launch (from repo or after install-scripts.sh, from anywhere)
+./scripts/start-ghelper.sh
+# or: start-ghelper.sh
+
+# Accidentally clicked auto-update?
+./scripts/fix-after-auto-update.sh
+
+# Quick health check anytime
+./scripts/check-ghelper.sh
+```
+
+After `./scripts/build-and-install.sh`, scripts are also installed to `/usr/local/bin/` with the **same `.sh` names** — run `start-ghelper.sh` from any directory.
+
+---
+
+## Quick reference (copy-paste)
+
+```bash
+git clone https://github.com/sandy9808/g-helper-popos-setup.git
+cd g-helper-popos-setup
+chmod +x scripts/*.sh
+./scripts/install-deps.sh
+./scripts/build-and-install.sh
+./scripts/start-ghelper.sh
+```
+
+---
+
 ## Prerequisites
 
 ```bash
-# Native build tools
+# Or just run: ./scripts/install-deps.sh
 sudo apt update
 sudo apt install -y \
   clang zlib1g-dev upx-ucl \
   libpipewire-0.3-dev pkg-config libwayland-dev \
   build-essential
 
-# .NET 10 SDK (not in Pop 22.04 repos — install via Microsoft script)
 curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
 bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet"
 echo 'export PATH="$HOME/.dotnet:$PATH"' >> ~/.bashrc
@@ -63,6 +113,7 @@ lsmod | grep asus  # asus_nb_wmi, asus_wmi should be loaded
 ## Build from source
 
 ```bash
+# Or just run: ./scripts/build-and-install.sh
 git clone https://github.com/utajum/g-helper-linux.git
 cd g-helper-linux
 export PATH="$HOME/.dotnet:$PATH"
@@ -74,17 +125,17 @@ Build output lands in `dist/ghelper` (~15 MB, Native AOT).
 Test before installing:
 
 ```bash
-./dist/ghelper
+./scripts/start-ghelper.sh   # after install-scripts.sh copies it
+# or from build dir: ./dist/ghelper  (needs DBUS env — prefer start-ghelper.sh)
 ```
-
-You should see log lines like `G-Helper Linux initialized` and `Tray icon created successfully`. A second launch reports *"another instance is already running"* — that is normal.
 
 ---
 
 ## Install system-wide
 
 ```bash
-sudo ./install/install-local.sh
+sudo ./install/install-local.sh   # inside g-helper-linux repo
+# or: ./scripts/build-and-install.sh   # does everything from this repo
 ```
 
 This deploys:
@@ -92,7 +143,8 @@ This deploys:
 | Path | Purpose |
 |------|---------|
 | `/opt/ghelper/ghelper` | Main binary |
-| `/usr/local/bin/ghelper` | Symlink |
+| `/usr/local/bin/ghelper` | Symlink to binary |
+| `/usr/local/bin/start-ghelper.sh` | Safe launcher script (same as repo) |
 | `/etc/udev/rules.d/90-ghelper.rules` | sysfs permissions |
 | `/etc/systemd/system/ghelper-gpu-boot.service` | Apply GPU mode at boot |
 | `~/.config/autostart/ghelper.desktop` | Autostart on login |
@@ -100,34 +152,25 @@ This deploys:
 Launch:
 
 ```bash
-start-ghelper          # recommended (sets DBUS/DISPLAY session env)
-# or from this repo: ./scripts/start-ghelper.sh
+./scripts/start-ghelper.sh
+# or after install-scripts.sh:
+start-ghelper.sh
 ```
 
-Or use the system tray icon / application menu entry.
-
-> Launching bare `ghelper` from scripts or SSH without `DBUS_SESSION_BUS_ADDRESS` can segfault ~5s after startup. Use `start-ghelper` instead.
+> Do **not** run bare `/opt/ghelper/ghelper` from scripts/SSH without DBUS session env — it can segfault ~5s after startup. Always use `start-ghelper.sh`.
 
 ---
 
 ## Extra fix: stale SkiaSharp libraries
 
-If you previously installed the release binary, old native libraries may remain in `/opt/ghelper/`:
-
-```text
-/opt/ghelper/libSkiaSharp.so
-/opt/ghelper/libHarfBuzzSharp.so
-```
-
-These conflict with the new build (version mismatch crash on startup). Remove them:
-
 ```bash
+# Or: ./scripts/fix-after-auto-update.sh
 sudo rm -f /opt/ghelper/libSkiaSharp.so /opt/ghelper/libHarfBuzzSharp.so
 sudo cp dist/ghelper /opt/ghelper/ghelper
 sudo chown "$USER:$USER" /opt/ghelper/ghelper
 ```
 
-Symptom without this fix:
+Symptom:
 
 ```text
 The version of the native libSkiaSharp library (88.1) is incompatible with this version of SkiaSharp.
@@ -137,39 +180,55 @@ The version of the native libSkiaSharp library (88.1) is incompatible with this 
 
 ## Disable auto-updates (important on Pop 22.04)
 
-The in-app updater downloads release binaries built on newer distros — they will break again on Pop 22.04.
+```bash
+./scripts/disable-auto-update.sh
+```
 
-In G-Helper: **Settings → disable "Don't check for updates on startup"** (or set in config):
+Or manually in `~/.config/ghelper/config.json`:
 
 ```json
-// ~/.config/ghelper/config.json
 {
   "skip_update_prompt": 1
 }
 ```
 
-To update later, rebuild from source and copy the binary:
+To update later, rebuild — **do not** use the in-app updater on Pop 22.04:
 
 ```bash
-cd g-helper-linux
-export PATH="$HOME/.dotnet:$PATH"
-./build.sh
-sudo cp dist/ghelper /opt/ghelper/ghelper
+./scripts/build-and-install.sh
 ```
-
-**Do not** let the app auto-update itself on Pop 22.04.
 
 ---
 
 ## Autostart
 
-Ensure `~/.config/autostart/ghelper.desktop` points to the system install:
+`~/.config/autostart/ghelper.desktop` should use the launcher script:
 
 ```ini
-Exec=/usr/local/bin/start-ghelper
+Exec=/usr/local/bin/start-ghelper.sh
 ```
 
-Not a bare `/opt/ghelper/ghelper` path (missing session env can crash on start).
+Or from the repo clone:
+
+```ini
+Exec=/home/USER/g-helper-popos-setup/scripts/start-ghelper.sh
+```
+
+---
+
+## Accidental auto-update — will it break?
+
+| Action | Risk |
+|--------|------|
+| Saw update prompt, clicked **No** / dismissed | No issue |
+| Downloaded update but **did not restart** | `/opt/ghelper/ghelper` may still be fine |
+| Downloaded update **and restarted** ghelper | Binary may need GLIBC 2.38 → **won't start** |
+
+```bash
+./scripts/check-ghelper.sh
+./scripts/fix-after-auto-update.sh    # if check fails
+./scripts/disable-auto-update.sh
+```
 
 ---
 
@@ -192,26 +251,21 @@ Not a bare `/opt/ghelper/ghelper` path (missing session env can crash on start).
 
 ### Refresh rate crash (segfault)
 
-Changing refresh rate inside G-Helper (xrandr backend) can segfault on some X11 setups:
-
-```text
-SetRefreshRate(144Hz) via xrandr backend
-Segmentation fault (core dumped)
-```
-
-**Workaround:** Change refresh rate in **Settings → Displays** (Pop!_OS) instead of inside G-Helper.
+Change refresh rate in **Settings → Displays** (Pop!_OS), not inside G-Helper.
 
 ### GPU Ultimate mode
 
-Switching to **Ultimate** requires a **reboot**. G-Helper shows a notification; the `ghelper-gpu-boot.service` applies the MUX switch before the display manager starts.
+Requires a **reboot** after switching in G-Helper.
 
-### Auto-update overwrote my build
+### Startup segfault from terminal/SSH
 
-If `dist/ghelper` suddenly needs GLIBC 2.38 again, restore from the build backup:
+Use `./scripts/start-ghelper.sh` — sets `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR`.
+
+### Stale lock file
 
 ```bash
-cp dist/ghelper.bak dist/ghelper   # if .bak exists from self-update
-# or rebuild: ./build.sh
+rm -f /run/user/$UID/ghelper.lock
+./scripts/start-ghelper.sh
 ```
 
 ---
@@ -221,10 +275,7 @@ cp dist/ghelper.bak dist/ghelper   # if .bak exists from self-update
 ```bash
 cd g-helper-linux
 sudo ./install/install-local.sh --uninstall
-# type YES when prompted
 ```
-
-User config in `~/.config/ghelper/` is preserved.
 
 ---
 
@@ -234,81 +285,6 @@ User config in `~/.config/ghelper/` is preserved.
 |------|-------|
 | [g-helper-linux](https://github.com/utajum/g-helper-linux) | Closest to Windows G-Helper; GUI + tray |
 | [asusctl](https://gitlab.com/asus-linux/asusctl) + [supergfxctl](https://gitlab.com/asus-linux/supergfxctl) | CLI-focused ASUS Linux stack |
-
-For TUF F15 on Pop!_OS, **g-helper-linux built from source** is the most complete option.
-
----
-
-## Scripts (in this repo)
-
-All scripts live in **`scripts/`**:
-
-| Script | What it does |
-|--------|----------------|
-| [`scripts/install-deps.sh`](scripts/install-deps.sh) | Install apt packages + .NET 10 SDK |
-| [`scripts/build-and-install.sh`](scripts/build-and-install.sh) | Clone, build, install g-helper-linux |
-| [`scripts/fix-after-auto-update.sh`](scripts/fix-after-auto-update.sh) | **Run this if you hit auto-update by mistake** |
-| [`scripts/check-ghelper.sh`](scripts/check-ghelper.sh) | Verify binary is compatible with Pop 22.04 |
-| [`scripts/disable-auto-update.sh`](scripts/disable-auto-update.sh) | Set `skip_update_prompt=1` in config |
-| [`scripts/start-ghelper.sh`](scripts/start-ghelper.sh) | **Safe launcher** — sets DBUS/DISPLAY env (prevents startup segfault) |
-
-```bash
-git clone https://github.com/sandy9808/g-helper-popos-setup.git
-cd g-helper-popos-setup
-chmod +x scripts/*.sh
-
-# First-time install
-./scripts/install-deps.sh
-./scripts/build-and-install.sh
-
-# Accidentally clicked auto-update?
-./scripts/fix-after-auto-update.sh
-
-# Quick health check anytime
-./scripts/check-ghelper.sh
-```
-
-### Accidental auto-update — will it break?
-
-**Maybe, depending on what you clicked:**
-
-| Action | Risk |
-|--------|------|
-| Saw update prompt, clicked **No** / dismissed | No issue |
-| Downloaded update but **did not restart** | `/opt/ghelper/ghelper` may still be fine |
-| Downloaded update **and restarted** ghelper | Binary may be replaced with GLIBC 2.38 build → **won't start** |
-| Update only touched `~/g-helper-linux/dist/` | System install at `/opt/ghelper/` may still be OK |
-
-Check now:
-
-```bash
-./scripts/check-ghelper.sh
-```
-
-If it says FAIL, run:
-
-```bash
-./scripts/fix-after-auto-update.sh
-```
-
-Then always run:
-
-```bash
-./scripts/disable-auto-update.sh
-```
-
----
-
-## Quick reference (copy-paste)
-
-```bash
-git clone https://github.com/sandy9808/g-helper-popos-setup.git
-cd g-helper-popos-setup
-chmod +x scripts/*.sh
-./scripts/install-deps.sh
-./scripts/build-and-install.sh
-ghelper
-```
 
 ---
 
