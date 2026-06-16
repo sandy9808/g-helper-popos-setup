@@ -236,24 +236,73 @@ For TUF F15 on Pop!_OS, **g-helper-linux built from source** is the most complet
 
 ---
 
+## Scripts (in this repo)
+
+All scripts live in **`scripts/`**:
+
+| Script | What it does |
+|--------|----------------|
+| [`scripts/install-deps.sh`](scripts/install-deps.sh) | Install apt packages + .NET 10 SDK |
+| [`scripts/build-and-install.sh`](scripts/build-and-install.sh) | Clone, build, install g-helper-linux |
+| [`scripts/fix-after-auto-update.sh`](scripts/fix-after-auto-update.sh) | **Run this if you hit auto-update by mistake** |
+| [`scripts/check-ghelper.sh`](scripts/check-ghelper.sh) | Verify binary is compatible with Pop 22.04 |
+| [`scripts/disable-auto-update.sh`](scripts/disable-auto-update.sh) | Set `skip_update_prompt=1` in config |
+
+```bash
+git clone https://github.com/sandy9808/g-helper-popos-setup.git
+cd g-helper-popos-setup
+chmod +x scripts/*.sh
+
+# First-time install
+./scripts/install-deps.sh
+./scripts/build-and-install.sh
+
+# Accidentally clicked auto-update?
+./scripts/fix-after-auto-update.sh
+
+# Quick health check anytime
+./scripts/check-ghelper.sh
+```
+
+### Accidental auto-update — will it break?
+
+**Maybe, depending on what you clicked:**
+
+| Action | Risk |
+|--------|------|
+| Saw update prompt, clicked **No** / dismissed | No issue |
+| Downloaded update but **did not restart** | `/opt/ghelper/ghelper` may still be fine |
+| Downloaded update **and restarted** ghelper | Binary may be replaced with GLIBC 2.38 build → **won't start** |
+| Update only touched `~/g-helper-linux/dist/` | System install at `/opt/ghelper/` may still be OK |
+
+Check now:
+
+```bash
+./scripts/check-ghelper.sh
+```
+
+If it says FAIL, run:
+
+```bash
+./scripts/fix-after-auto-update.sh
+```
+
+Then always run:
+
+```bash
+./scripts/disable-auto-update.sh
+```
+
+---
+
 ## Quick reference (copy-paste)
 
 ```bash
-# Full install from scratch on Pop!_OS 22.04
-sudo apt install -y clang zlib1g-dev upx-ucl libpipewire-0.3-dev pkg-config libwayland-dev build-essential
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir "$HOME/.dotnet"
-export PATH="$HOME/.dotnet:$PATH"
-
-git clone https://github.com/utajum/g-helper-linux.git
-cd g-helper-linux
-./build.sh
-sudo rm -f /opt/ghelper/libSkiaSharp.so /opt/ghelper/libHarfBuzzSharp.so 2>/dev/null
-sudo ./install/install-local.sh
-
-# Disable auto-updates
-mkdir -p ~/.config/ghelper
-# Add "skip_update_prompt": 1 to ~/.config/ghelper/config.json
-
+git clone https://github.com/sandy9808/g-helper-popos-setup.git
+cd g-helper-popos-setup
+chmod +x scripts/*.sh
+./scripts/install-deps.sh
+./scripts/build-and-install.sh
 ghelper
 ```
 
