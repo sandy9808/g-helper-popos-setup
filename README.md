@@ -100,10 +100,13 @@ This deploys:
 Launch:
 
 ```bash
-ghelper
+start-ghelper          # recommended (sets DBUS/DISPLAY session env)
+# or from this repo: ./scripts/start-ghelper.sh
 ```
 
 Or use the system tray icon / application menu entry.
+
+> Launching bare `ghelper` from scripts or SSH without `DBUS_SESSION_BUS_ADDRESS` can segfault ~5s after startup. Use `start-ghelper` instead.
 
 ---
 
@@ -163,10 +166,10 @@ sudo cp dist/ghelper /opt/ghelper/ghelper
 Ensure `~/.config/autostart/ghelper.desktop` points to the system install:
 
 ```ini
-Exec=/opt/ghelper/ghelper
+Exec=/usr/local/bin/start-ghelper
 ```
 
-Not a path under your build directory (`~/g-helper-linux/dist/ghelper`).
+Not a bare `/opt/ghelper/ghelper` path (missing session env can crash on start).
 
 ---
 
@@ -247,6 +250,7 @@ All scripts live in **`scripts/`**:
 | [`scripts/fix-after-auto-update.sh`](scripts/fix-after-auto-update.sh) | **Run this if you hit auto-update by mistake** |
 | [`scripts/check-ghelper.sh`](scripts/check-ghelper.sh) | Verify binary is compatible with Pop 22.04 |
 | [`scripts/disable-auto-update.sh`](scripts/disable-auto-update.sh) | Set `skip_update_prompt=1` in config |
+| [`scripts/start-ghelper.sh`](scripts/start-ghelper.sh) | **Safe launcher** — sets DBUS/DISPLAY env (prevents startup segfault) |
 
 ```bash
 git clone https://github.com/sandy9808/g-helper-popos-setup.git
